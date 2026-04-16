@@ -3,20 +3,18 @@ const cheerio = require('cheerio');
 
 // List domain cadangan untuk auto-fallback source
 const SOURCE_DOMAINS = [
-    // 'https://anichin.care',
+    'https://anichin.moe',
     'https://anichin.cafe',
-    // 'https://anichin.moe',
+    'https://anichin.care',
 ];
 
 let ACTIVE_SOURCE_URL = SOURCE_DOMAINS[0];
 
 const getHeaders = (url) => ({
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.162 Mobile Safari/537.36',
     'Referer': url || ACTIVE_SOURCE_URL,
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
 });
 
 const scraper = {
@@ -25,32 +23,24 @@ const scraper = {
         for (const domain of SOURCE_DOMAINS) {
             const targetUrl = path.startsWith('http') ? path : `${domain}${path}`;
             try {
-                return await axios.get(targetUrl, {
+                const res = await axios.get(targetUrl, {
                     headers: getHeaders(domain),
-                    timeout: 15000
+                    timeout: 15000 // Naikkan ke 15 detik
                 });
-            } catch (e) {
-                lastError = e;
-                // Jika diblokir (403), coba pakai proxy publik
-                if (e.response && e.response.status === 403) {
-                    console.log(`[SCRAPER] 403 Blocked on ${domain}, trying proxy...`);
-                    const proxies = [
-                        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-                        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
-                    ];
-                    for (const proxyUrl of proxies) {
-                        try {
-                            const res = await axios.get(proxyUrl, { timeout: 15000 });
-                            console.log(`[SCRAPER] Proxy Success: ${proxyUrl.split('/')[2]}`);
-                            return res;
-                        } catch (err) { continue; }
-                    }
+
+                // Jika berhasil, update ACTIVE_SOURCE_URL biar next request lebih cepet
+                if (!path.startsWith('http')) {
+                    ACTIVE_SOURCE_URL = domain;
                 }
+
+                return res;
+            } catch (e) {
                 console.error(`[SCRAPER] Failed on ${domain}:`, e.message);
-                continue;
+                lastError = e;
+                continue; // Coba domain berikutnya
             }
         }
-        throw lastError;
+        throw lastError; // Kalau semua gagal, baru lempar error
     },
 
     getLatest: async (page = 1) => {
