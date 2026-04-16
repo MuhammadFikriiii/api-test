@@ -3,9 +3,7 @@ const cheerio = require('cheerio');
 
 // List domain cadangan untuk auto-fallback source
 const SOURCE_DOMAINS = [
-    'https://anichin.moe',
     'https://anichin.cafe',
-    'https://anichin.care',
 ];
 
 let ACTIVE_SOURCE_URL = SOURCE_DOMAINS[0];
@@ -19,28 +17,36 @@ const getHeaders = (url) => ({
 
 const scraper = {
     _sourceGet: async (path) => {
-        let lastError;
-        for (const domain of SOURCE_DOMAINS) {
-            const targetUrl = path.startsWith('http') ? path : `${domain}${path}`;
-            try {
-                const res = await axios.get(targetUrl, {
-                    headers: getHeaders(domain),
-                    timeout: 15000 // Naikkan ke 15 detik
-                });
+        const domain = SOURCE_DOMAINS[0];
+        const targetUrl = path.startsWith('http') ? path : `${domain}${path}`;
+        const isVercel = process.env.VERCEL || process.env.VERCEL_URL;
 
-                // Jika berhasil, update ACTIVE_SOURCE_URL biar next request lebih cepet
-                if (!path.startsWith('http')) {
-                    ACTIVE_SOURCE_URL = domain;
+        const attemptFetch = async (url, useProxy = false) => {
+            const finalUrl = useProxy 
+                ? `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` 
+                : url;
+            
+            return axios.get(finalUrl, {
+                headers: getHeaders(domain),
+                timeout: 20000
+            });
+        };
+
+        try {
+            console.log(`[SCRAPER] Fetching: ${targetUrl} (Proxy: false)`);
+            return await attemptFetch(targetUrl, false);
+        } catch (e) {
+            // If 403 and on Vercel, try proxy once
+            if ((e.response?.status === 403 || e.message.includes('403')) && isVercel) {
+                console.warn(`[SCRAPER] 403 detected on Vercel, retrying via Proxy...`);
+                try {
+                    return await attemptFetch(targetUrl, true);
+                } catch (proxyErr) {
+                    throw new Error(`Scraper failed: 403 on direct AND proxy failed (${proxyErr.message})`);
                 }
-
-                return res;
-            } catch (e) {
-                console.error(`[SCRAPER] Failed on ${domain}:`, e.message);
-                lastError = e;
-                continue; // Coba domain berikutnya
             }
+            throw e;
         }
-        throw lastError; // Kalau semua gagal, baru lempar error
     },
 
     getLatest: async (page = 1) => {
