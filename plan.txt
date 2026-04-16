@@ -1,0 +1,35 @@
+LANGKAH-LANGKAH PEMBUATAN APLIKASI DONGHUAWATCH MOBILE (EXPO)
+
+TAHAP 1: PERSIAPAN & SETUP DASHBOARD
+1. Install Expo CLI dan inisialisasi project baru: npx create-expo-app@latest donghuawatch-app
+2. Install dependencies utama: 
+   - expo-router (Navigasi)
+   - nativewind & tailwindcss (Styling)
+   - axios (Koneksi API)
+   - react-native-webview (Untuk Video Player)
+3. Setup konfigurasi API URL agar bisa diakses dari HP (menggunakan IP lokal atau URL VPS).
+
+TAHAP 2: HALAMAN UTAMA (HOME SCREEN)
+1. Buat komponen UI Header Premium dengan Logo DonghuaWatch.
+2. Buat "Banner Slider" atau "Horizontal List" untuk Donghua yang sedang Populer Today.
+3. Buat "Vertical List" untuk Latest Updates (Episode Terbaru) dengan fitur pagination.
+4. Styling menggunakan NativeWind biar terlihat modern dan "wah" (dark mode).
+
+TAHAP 3: HALAMAN DETAIL & PLAYLIST
+1. Buat halaman detail yang menampilkan Poster, Sinopsis lengkap, dan info lainnya (Status, Type, Genre).
+2. Buat daftar episode yang rapi dan mudah di-klik.
+3. Tambahkan fitur "Kelola History" agar user tau episode mana yang sudah ditonton (opsional tapi keren).
+
+TAHAP 4: INTEGRASI PREMIUM VIDEO PLAYER
+1. Implementasi WebView yang memanggil URL Player dari API kita (http://localhost:3001/player?url=...).
+2. Pastikan fitur Resolusi dan Download tetap berfungsi di dalam WebView Mobile.
+3. Tambahkan fungsi Screen Rotation (Landscape) otomatis saat menonton.
+
+TAHAP 5: PENCARIAN & GENRE
+1. Buat halaman Search dengan input yang responsif terhadap API /api/search.
+2. Buat kategori Genre yang bisa di-klik untuk memfilter konten.
+
+TAHAP 6: FINISHING & BUILD APK
+1. Optimasi performa dan loading state (pakai Skeleton Screen).
+2. Setup Splash Screen dan Icon aplikasi yang premium.
+3. Proses build menjadi .apk menggunakan EAS Build.
