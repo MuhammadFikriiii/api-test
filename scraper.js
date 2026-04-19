@@ -404,7 +404,8 @@ const scraper = {
     },
 
     search: async (keyword, page = 1) => {
-        const path = page > 1 ? `/page/${page}/?s=${encodeURIComponent(keyword)}` : `/?s=${encodeURIComponent(keyword)}`;
+        const encodedQuery = encodeURIComponent(keyword).replace(/%20/g, '+');
+        const path = page > 1 ? `/page/${page}/?s=${encodedQuery}` : `/?s=${encodedQuery}`;
         const list = await scraper._scrapeSourceList(path);
         return scraper._applyFilter({ status: 'success', data: list });
     },
