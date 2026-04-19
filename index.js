@@ -111,16 +111,9 @@ app.get('/player', (req, res) => {
     let videoUrl = req.query.url;
     if (!videoUrl) return res.status(400).send('No video URL provided');
 
-    // ONLY proxy actual m3u8/ts streams — NOT HTML embed pages
-    const isM3u8 = videoUrl.includes('.m3u8') || videoUrl.includes('.ts');
-    const isOkruDirect = videoUrl.includes('vkuser.net') || videoUrl.includes('vkcdn.com');
-    const isAnichinDirect = videoUrl.includes('anichin.stream/hls/');
-
-    if (isM3u8 || isOkruDirect || isAnichinDirect) {
-        const protocol = req.protocol;
-        const host = req.get('host');
-        videoUrl = `${protocol}://${host}/api/proxy/v?url=${encodeURIComponent(videoUrl)}`;
-    }
+    // We let the browser handle m3u8 directly because Vercel serverless functions
+    // cannot proxy video streams without crashing/timing out/consuming gigabytes of bandwidth.
+    // The Direct URLs we resolve (like 1a-1791.com) have Access-Control-Allow-Origin: *
 
     // Embed page (ok.ru/videoembed or raw anichin embed) — render as simple iframe
     const isEmbedPage = videoUrl.includes('ok.ru/videoembed') ||
