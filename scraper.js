@@ -9,11 +9,25 @@ const SOURCE_DOMAINS = [
 let ACTIVE_SOURCE_URL = SOURCE_DOMAINS[0];
 
 const getHeaders = (url) => ({
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.162 Mobile Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
     'Referer': url || ACTIVE_SOURCE_URL,
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+    'DNT': '1',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'same-origin',
+    'Cache-Control': 'max-age=0',
 });
+
+// CORS proxy fallback URLs
+const CORS_PROXIES = [
+    (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
 
 const scraper = {
     _sourceGet: async (path) => {
@@ -21,29 +35,41 @@ const scraper = {
         const targetUrl = path.startsWith('http') ? path : `${domain}${path}`;
         const isVercel = process.env.VERCEL || process.env.VERCEL_URL;
 
-        const attemptFetch = async (url, useProxy = false) => {
-            const finalUrl = useProxy 
-                ? `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` 
-                : url;
-            
-            return axios.get(finalUrl, {
-                headers: getHeaders(domain),
-                timeout: 20000
-            });
-        };
-
         try {
-            console.log(`[SCRAPER] Fetching: ${targetUrl} (Proxy: false)`);
-            return await attemptFetch(targetUrl, false);
+            console.log(`[SCRAPER] Fetching: ${targetUrl} (Direct)`);
+            return await axios.get(targetUrl, {
+                headers: getHeaders(targetUrl),
+                timeout: 15000,
+                maxRedirects: 5,
+            });
         } catch (e) {
-            // If 403 and on Vercel, try proxy once
-            if ((e.response?.status === 403 || e.message.includes('403')) && isVercel) {
-                console.warn(`[SCRAPER] 403 detected on Vercel, retrying via Proxy...`);
-                try {
-                    return await attemptFetch(targetUrl, true);
-                } catch (proxyErr) {
-                    throw new Error(`Scraper failed: 403 on direct AND proxy failed (${proxyErr.message})`);
+            if ((e.response?.status === 403 || e.message.includes('403') || e.code === 'ECONNRESET') && isVercel) {
+                console.warn(`[SCRAPER] Blocked or failed on Vercel for ${targetUrl}, trying proxies...`);
+                
+                let lastProxyErr;
+                for (const proxyFn of CORS_PROXIES) {
+                    const proxyUrl = proxyFn(targetUrl);
+                    console.log(`[SCRAPER] Trying proxy: ${proxyUrl.split('/')[2]}`);
+                    try {
+                        const res = await axios.get(proxyUrl, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                            },
+                            timeout: 20000
+                        });
+                        
+                        if (res.status === 200 && res.data) {
+                            console.log(`[SCRAPER] ✅ Proxy success: ${proxyUrl.split('/')[2]}`);
+                            return res;
+                        }
+                    } catch (proxyErr) {
+                        lastProxyErr = proxyErr;
+                        console.warn(`[SCRAPER] ❌ Proxy failed: ${proxyUrl.split('/')[2]} (${proxyErr.message})`);
+                        continue;
+                    }
                 }
+                throw new Error(`Scraper failed: Direct and all proxies failed. Last proxy error: ${lastProxyErr?.message}`);
             }
             throw e;
         }
