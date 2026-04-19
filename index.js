@@ -169,6 +169,8 @@ app.get('/player', (req, res) => {
             justify-content:center;
         }
         video { width:100%; height:100%; object-fit:contain; }
+        
+        .plyr { width: 100%; height: 100%; }
 
         /* Override Plyr colors to light-blue */
         .plyr--full-ui.plyr--video { --plyr-color-main: #38bdf8 !important; }
